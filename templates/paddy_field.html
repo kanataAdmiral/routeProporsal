@@ -1,0 +1,436 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>レイヤーを使おう</title>
+
+
+  	<meta charset="utf-8">
+  	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    {#    leaflet#}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    {#    leatlet/draw#}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.9/leaflet.draw-src.js"></script>
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.9/leaflet.draw-src.css' />
+
+    {#    bingmap#}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-plugins/3.3.1/layer/tile/Bing.js"></script>
+    <script type="text/javascript" src="https://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0&mkt=ja-JP"></script>
+
+    {#    jquery#}
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+
+    {#    searchEngin#}
+    <link rel="stylesheet" href={% static 'rection1/OSMGeocoder.css' %} />
+    <script src="{% static 'rection1/OSMGeocoder.js' %}"></script>
+
+    <style>
+      #mapid { height: 750px; width: 1850px; z-index: 1}
+    </style>
+</head>
+<body onload="init()">
+
+    <div id="mapid"></div>
+    <button id="button1" type="button">GETボタン</button>
+    <div id="resultGET"></div>
+
+    <script>
+
+        let map;
+        let position = [];
+        let location_json = [];
+        let start_end_point = [];
+        let start_end_point_json = [];
+
+        function init() {
+
+            map = L.map('mapid', {
+                center: [34.38580436023255, 132.454444169998],
+                zoom: 18,
+                zoomControl: false
+            });
+
+            L.control.zoom({
+                position: 'bottomright',
+                zoomInTitle: 'ズームイン',
+                zoomOutTitle: 'ズームアウト'
+            }).addTo(map);
+
+            //ベースMap(どれか１つ）
+            const bingmaps = new L.BingLayer("AjLokX7PlXoy5aDmEGEOXwr1_DY1J4v71vsumvhDqWdFFqb6SxBKmlmNoYERKpB2", {
+                imagerySet: 'AerialWithLabelsOnDemand',
+                culture: 'ja',
+                maxZoom: 19
+            });
+
+            bingmaps.addTo(map);
+
+            // Control OSM Geocoder
+            const option = {
+                position: 'topleft', // topright, topleft, bottomright, bottomleft
+                text: '検索',
+                placeholder: '検索条件を入力してください。',
+                collapsed: false
+            };
+
+            const osmGeocoder = new L.Control.OSMGeocoder(option);
+            map.addControl(osmGeocoder);
+
+
+            const MyPolygonMarker = L.Icon.extend({
+                options: {
+                    iconAnchor: new L.Point(25, 50),
+                    iconSize: new L.Point(50, 50),
+                    iconUrl: '{% static 'rection1/pingicon.png' %}',
+                    iconRetinaUrl: '{% static 'rection1/pingicon.png' %}'
+                },
+            });
+
+            const MyCustomMarker = L.Marker.include({
+                paddyStartPosition: false,
+                paddyEndPosition: false,
+
+                bindOpenTooltip: function (){
+                    if(this.paddyStartPosition && !this.paddyEndPosition) {
+                        this.bindTooltip("入口", {permanent: true}).openTooltip();
+                    }else if(!this.paddyStartPosition && this.paddyEndPosition) {
+                        this.bindTooltip("出口", {permanent: true}).openTooltip();
+                    }
+                }
+            });
+
+            const MyCustomMarkerFeatureGroup = L.FeatureGroup.include({
+                startPosition: false,
+                endPosition: false,
+
+                setPosition: function (newLayer) {
+                    if (newLayer instanceof MyCustomMarker) {
+                        //始点が設定されていなかったとき
+                        if (!this.startPosition) {
+                            newLayer.paddyStartPosition = true;
+                            this.startPosition = true;
+                            newLayer.bindOpenTooltip();
+                            return true;
+                            //始点が設定されていて終点が設定されていなかったとき
+                        } else if (!this.endPosition) {
+                            newLayer.paddyEndPosition = true;
+                            this.endPosition = true;
+                            newLayer.bindOpenTooltip();
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+
+                releasePosition: function (layer){
+                    if(layer instanceof MyCustomMarker){
+                        if(layer.paddyStartPosition){
+                            this.startPosition = false;
+                        }else if (layer.paddyEndPosition){
+                            this.endPosition = false;
+                        }
+                    }
+                },
+
+                addLayerSetPosition: function(newLayer) {
+                    if(newLayer instanceof  MyCustomMarker) {
+                        if (this.startPosition && this.endPosition) {
+                        } else {
+                            this.setPosition(newLayer);
+                            this.addLayer(newLayer);
+                        }
+                    }
+                },
+
+                removeLayerReleasePosition: function(layer){
+                    if(layer instanceof  MyCustomMarker){
+                        this.releasePosition(layer);
+                        this.removeLayer(layer);
+                    }
+
+                }
+            })
+
+            // 図形をまとめるためのオブジェクト
+            const drawnItems = new L.FeatureGroup().addTo(map);
+            const markerItems = new MyCustomMarkerFeatureGroup().addTo(map);
+
+            const options = {
+                position: 'topright',
+                draw: {
+                    polyline: false,
+                    polygon: {
+                        allowIntersection: false, // Restricts shapes to simple polygons
+                        drawError: {
+                            color: '#e1e100', // Color the shape will turn when intersects
+                            message: '<strong>Oh snap!<strong> you can\'t draw that!' // Message that will show when intersect
+                        },
+                        shapeOptions: {
+                            color: '#0000FF'
+                        },
+                        icon: new MyPolygonMarker()
+                    },
+                    circle: false,
+                    rectangle: false,
+                    marker: false
+                },
+                edit: {
+                    featureGroup: drawnItems, //REQUIRED!!
+                },
+            };
+
+            L.drawLocal = {
+                draw: {
+                    toolbar: {
+                        actions: {
+                            title: 'Cancel drawing',
+                            text: 'キャンセル'
+                        },
+                        finish: {
+                            title: 'Finish drawing',
+                            text: '描画終了'
+                        },
+                        undo: {
+                            title: 'Delete last point drawn',
+                            text: '最後につけた点を削除する'
+                        },
+                        buttons: {
+                            polygon: '多角形の画像を描画',
+                            marker: '始点と終点を決めます',
+                        }
+                    },
+                    handlers: {
+                        circle: {
+                            tooltip: {
+                                start: 'Click and drag to draw circle.'
+                            },
+                            radius: 'Radius'
+                        },
+                        marker: {
+                            tooltip: {
+                                start: '始点と終点を設定'
+                            }
+                        },
+                        polygon: {
+                            tooltip: {
+                                start: 'クリックで始点を決定します',
+                                cont: 'クリックで次の点を決定します',
+                                end: 'クリックで終点を始点とつなぎ描画は終了します'
+                            }
+                        },
+                        polyline: {
+                            error: '<strong>Error:</strong> shape edges cannot cross!',
+                            tooltip: {
+                                start: 'Click to start drawing line.',
+                                cont: 'Click to continue drawing line.',
+                                end: 'Click last point to finish line.'
+                            }
+                        },
+                        rectangle: {
+                            tooltip: {
+                                start: 'Click and drag to draw rectangle.'
+                            }
+                        },
+                        simpleshape: {
+                            tooltip: {
+                                end: 'Release mouse to finish drawing.'
+                            }
+                        }
+                    },
+                },
+                edit: {
+                    toolbar: {
+                        actions: {
+                            save: {
+                                title: 'Save changes.',
+                                text: '変更を保存'
+                            },
+                            cancel: {
+                                title: 'Cancel editing, discards all changes.',
+                                text: '変更を破棄'
+                            }
+                        },
+                        buttons: {
+                            edit: '編集',
+                            editDisabled: 'No layers to edit.',
+                            remove: '削除',
+                            removeDisabled: 'No layers to delete.'
+                        }
+                    },
+                    handlers: {
+                        edit: {
+                            tooltip: {
+                                text: '描画した図の頂点ををクリックすることで編集できます',
+                                subtext: 'Click cancel to undo changes.'
+                            }
+                        },
+                        remove: {
+                            tooltip: {
+                                text: '描画した図を消去する'
+                            }
+                        }
+                    }
+                }
+            };
+
+            // 図形を描くためのコントローラ
+            // 位置のデフォルトは左上ですが、右上に指定を変えています。
+            const drawControl = new L.Control.Draw(options).addTo(map);
+            map.addControl(drawControl);
+
+            map.on(L.Draw.Event.CREATED, function (e) {
+                //Drawレイヤーを追加したときにトリガーされる
+                const type = e.layerType, layer = e.layer;
+                //typeがポリゴンなら
+                if (type === 'polygon') {
+                    //ポリゴン内にツールチップ作成
+                    layer.bindTooltip("クリックして出入口を指定してください", {sticky:true}).openTooltip();
+                    const _coords = layer.getLatLngs()[0];
+                    layer.on("click", function (e) {
+                            map.fitBounds(layer.getBounds());
+                            const marker = new MyCustomMarker(
+                                e.latlng,
+                                {
+                                    draggable: true,
+                                    maxBounds: layer.getLatLngs()
+                                }
+                            ).on("click", function () {
+                                    //Marker削除の処理
+                                    markerItems.removeLayerReleasePosition(this);
+                                }
+                            ).on("dragend", function () {
+                                //ポリゴンのリストを作成
+                                const polygonInnerLatLngList = [];
+                                //ポリゴンをリスト化する。
+                                $.each(_coords, function (ind, val) {
+                                    polygonInnerLatLngList.push([val.lat, val.lng]);
+                                });
+
+                                //描画可能範囲を指定
+                                if (!isInsideByCrossingNumberAlgorithm([this.getLatLng().lat, this.getLatLng().lng], polygonInnerLatLngList)) {
+                                    markerItems.removeLayerReleasePosition(this);
+                                }
+                            });
+                            markerItems.addLayerSetPosition(marker);
+                    });
+                    map.fitBounds(layer.getBounds());
+                    drawnItems.addLayer(e.layer);
+                }
+            });
+
+            map.on("draw:deleted", function (e) {
+                const layers = e.layers;
+                layers.eachLayer(function (layer) {
+                    if (layer instanceof L.Polygon) {
+                        position = [];
+                        start_end_point = [];
+                        location_json = JSON.stringify(position);
+                        start_end_point_json = JSON.stringify(start_end_point);
+                        markerItems.eachLayer(function(layer){
+                            markerItems.removeLayerReleasePosition(layer);
+                        });
+                    }
+                });
+            });
+
+            //多角形の中にマーカがあるのかどうかを判定するアルゴリズム
+            function isInsideByCrossingNumberAlgorithm(point, polygon) {
+                const x = point[0];
+                const y = point[1];
+
+                let crossCount = 0;
+                for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                    // 多角形を成す辺を全て調査する
+                    // 現在の index の多角形の点X, Y
+                    const polCX = polygon[i][0];
+                    const polCY = polygon[i][1];
+                    // 次の index の多角形の点X, Y
+                    const polNX = polygon[j][0];
+                    const polNY = polygon[j][1];
+
+                    if (polCY > y === polNY > y) {
+                        // 点が辺の完全に上 or 完全に下ならば. ノーカウントでループ続行
+                        continue;
+                    }
+
+                    // 辺が点pと同じ高さになる位置を特定し、その時のxの値と点pのxの値を比較する
+                    // 同じ高さになる時の辺の割合 = (点Y - 始点Y座標)) / 辺のY軸長さ
+                    const vt = (y - polCY) / (polNY - polCY);
+                    // 点のX座標 < 辺のX軸長さ * 同じ高さになる時の辺の割合 + 始点X座標
+                    if (x < (polNX - polCX) * vt + polCX) {
+                        crossCount++;
+                    }
+                }
+                return crossCount % 2 === 1;
+            }
+
+            $('#button1').on('click', function(){
+                location_json = [];
+                start_end_point_json = [];
+                position = [];
+                start_end_point = [];
+                drawnItems.eachLayer(function (layer) {
+                    if (layer instanceof L.Polygon) {
+                        const _coords = layer.getLatLngs()[0];
+                        $.each(_coords, function (ind, val) {
+                            const location = {};
+                            location.position = ind;
+                            location.y = val.lat;
+                            location.x = val.lng;
+                            position.push(location);
+                        });
+                        const paddyFields = {};
+                        paddyFields.paddyFields = position
+                        location_json = JSON.stringify(paddyFields);
+                    }
+                });
+                markerItems.eachLayer(function(layer){
+                    if (layer instanceof MyCustomMarker) {
+                        if(layer.paddyStartPosition) {
+                            const point = {};
+                            const Position = {};
+                            point.position = "start";
+                            point.y = layer.getLatLng().lat;
+                            point.x = layer.getLatLng().lng;
+                            start_end_point.push(point);
+                            Position.StartEndPosition = start_end_point
+                            start_end_point_json = JSON.stringify(Position);
+                        }else if(layer.paddyEndPosition){
+                            const point = {};
+                            const Position = {};
+                            point.position = "end";
+                            point.y = layer.getLatLng().lat;
+                            point.x = layer.getLatLng().lng;
+                            start_end_point.push(point);
+                            Position.StartEndPosition = start_end_point
+                            start_end_point_json = JSON.stringify(Position);
+                        }
+                    }
+                });
+                $('#resultGET').text('通信中...');
+                // Ajax通信を開始
+                $.ajax({
+                    url: "{% url 'position' %}",
+                    method: "GET",
+                    // プレーンテキストを受信（他にはhtml、xml、script、json、jsonp等）
+                    dataType: 'text',
+                    // リクエストパラメータ「?param1=いろはに&param2=ほへと&param3=ちりぬるを」
+                    data: {
+                        location_json_data: location_json,
+                        location_start_end_point_data: start_end_point_json
+                    },
+                }).done(function(data) {
+                    // 通信成功時の処理を記述
+                    $('#resultGET').text('GET処理成功：' + data + '.');
+                }).fail(function() {
+                    // 通信失敗時の処理を記述
+                    $('#resultGET').text('GET処理失敗.');
+                });
+            });
+        }
+    </script>
+</body>
+</html>

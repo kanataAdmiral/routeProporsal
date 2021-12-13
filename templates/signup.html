@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block title %}ログイン{% endblock title %}
+{% block content %}
+    <form action="{% url 'login' %}" method="post" class="row g-3">
+        {% csrf_token %}
+        {{ signUpForm }}
+        <button type="submit" class="btn btn-primary">新規登録</button>
+    </form>
+    <ul>
+        <li><a href="">会員登録はこちら</a></li>
+        <li><a href="">パスワードを忘れてしまった方はこちら</a></li>
+    </ul>
+{% endblock content %}

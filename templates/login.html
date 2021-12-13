@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block title %}ログイン{% endblock title %}
+{% block content %}
+    <form action="{% url 'loginConf' %}" method="post" class="row g-3">
+        {% csrf_token %}
+        <div class="col-md-6">
+            <label for="id_id" class="form-label">id:</label>
+            {{ loginForm.id }}
+        </div>
+        <div class="col-md-6">
+            <label for="id_password" class="form-label">password:</label>
+            {{ loginForm.password }}
+        </div>
+        <button type="submit" class="btn btn-primary">ログイン</button>
+    </form>
+    <ul>
+        <li><a href="">会員登録はこちら</a></li>
+        <li><a href="">パスワードを忘れてしまった方はこちら</a></li>
+    </ul>
+{% endblock content %}
