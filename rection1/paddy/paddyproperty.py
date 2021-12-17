@@ -19,7 +19,8 @@ INSIDE = "I"
 memo
 次回の作業:
 
-xMovementとyMovementもこの仕様変更を受けて、処理を変更する必要があるため、それを行う。
+ポリゴンの内側にいるのかどうかで判定を行うのはかなり時間がかかるため没。
+移動量を軸とした外周の算出を行う
 """
 
 
@@ -239,7 +240,6 @@ class PaddyProperty:
         print("行移動量", yMovement)
 
     # 配列を生成
-
     def createList(self):
         #   配列の生成   列、行で生成
         self.paddyArray = [[0] * (self.maxColumn + self.xCorrection) for _ in range(self.maxRow + self.yCorrection)]
@@ -467,7 +467,6 @@ class PaddyProperty:
     回転行列を用いて最も高い点(以後topと呼ぶ)を中心としてtopから一つ右の点(以後topLeftとする)をtopと同じ高さにするように変換を行う。
     アフィン変換を用いてこれを実現topを一度原点に移動させ、そこからtopからtopLeftへの角度(以後radとする)を算出、
     radをもとにそれぞれのポジションを同じradで反時計回りに回転させる。
-    次回からはxMovementとyMovementもこの仕様変更を受けて、処理を変更する必要があるため、それを行う。
     """
 
     # 時計回りか反時計回りかを判定後呼び出し可能
