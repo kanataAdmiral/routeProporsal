@@ -3,7 +3,6 @@ from ..paddy.machineMovement import machineMovement as m
 
 
 class RouteProposal:
-
     paddyArray: list[list[any]]
 
     outsideRowList: list[int]
@@ -88,12 +87,13 @@ class RouteProposal:
             # 田んぼの内周が奇数ならまず上に向かう
             # 最も左下のポジションを取得
             leftTopPosition = insideRowLength, self.insideColumnList[0]
-            moveList, startPosition = m.goStartPosition(leftTopPosition,
-                                                        doorwayList,
-                                                        self.outsideCircumferenceRowList,
-                                                        self.outsideCircumferenceColumnList)
+            moveList, startPosition = m.goStartPosition(
+                leftTopPosition,
+                doorwayList,
+                self.outsideCircumferenceRowList,
+                self.outsideCircumferenceColumnList
+            )
             movementList.append(moveList)
-
             nowRowPosition = startPosition[0]
             nowColumnPosition = startPosition[1]
             for i in range(startPosition[0], insideColumnLength + 1):
