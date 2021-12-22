@@ -1,44 +1,25 @@
+import csv
+
+from .parameter import Paddy, Position
 import math
-import numpy as np
-
-from .routeProposal import RouteProposal as rp
-from rection1.paddy.Model.paddyModel import Paddy, Position
 from geopy.distance import geodesic
-from ..paddy.Model.machineModel import Machine
-from .Parameters import paddyParameters as pp
-from ..util import util
 
-
-"""
-memo
-次回の作業:
-
-時間がかかるためそれの改善
-->
-そもそも外周を描画する必要はない
-"""
+JOUKAN: int = 30
+KABUMA: int = 18
+POSITION = 5
+WALL = 4
 
 
 class PaddyProperty:
-    # 外周の縦横の長さを格納
-    outsideMaxRow: int
-    outsideMaxColumn: int
-
-    # 内周の縦横の長さを格納
-    insideMaxRow: int
-    insideMaxColumn: int
+    # 縦横の長さを格納
+    vertical: int
+    beside: int
 
     # 上下左右の値を格納
     rightIndex: int
     leftIndex: int
     topIndex: int
     bottomIndex: int
-
-    # 回転後の上下左右の値を格納
-    arrayRightIndex: int
-    arrayLeftIndex: int
-    arrayTopIndex: int
-    arrayBottomIndex: int
 
     # 上下の座標を格納
     topVal: tuple
@@ -62,62 +43,34 @@ class PaddyProperty:
     paddyFields: list[Paddy]
 
     # 田んぼの配列を格納
-    paddyArray: list[list[any]]
-
-    # 外周の配列を格納
-    insidePaddyArray: list[list[any]]
-
-    # 内周の配列を格納
-    outsidePaddyArray: list[any]
+    paddyArray: list[list[int]]
 
     # 田んぼのポジションからポジションからまでの距離を格納
     paddyDistance: list[list[float]]
 
-    # 機械の情報を格納
-    machineInfo: Machine
+    # 田んぼのポジションが2次元配列のどこにあるのかを格納
+    xPositionList: list[int]
+    yPositionList: list[int]
 
     # 点から点までの移動量を格納
     xMovement: list[int]
     yMovement: list[int]
 
+    # ノードからノードまでの順番を格納
+    nodeList: list[list[bool]]
+
     # 作成したTOPからつながるノードを格納
     topToEndNode: list[int]
 
-    # 原点のポジションを格納する
-    topLeft: tuple
-
-    # 田んぼの[外周]のポジションが2次元配列のどこにあるのかを格納
-    # 原点からそれぞれのポジションへの距離を格納
-    # 実質各ポジションがlistのどこにあるのかを示すこととなる
-    outsideCircumferenceRowList: list[int]
-    outsideCircumferenceColumnList: list[int]
-
-    # 田んぼの[内周]のポジションが2次元配列のどこにあるのかを格納
-    # 実質各ポジションがlistのどこにあるのかを示すこととなる
-    insideCircumferenceRowList: list[int]
-    insideCircumferenceColumnList: list[int]
-
-    # 出入口がどこにあるのかを格納
-    doorwayColumnList: list[int]
-    doorwayRowList: list[int]
-
-    def __init__(self, paddyFields, startEndPosition, machineInfo):
-        # 必要な情報の初期化
-        # 引数にある情報を初期化
+    def __init__(self, paddyFields, startEndPosition):
         self.paddyFields = paddyFields
         self.startEndPosition = startEndPosition
-        self.machineInfo = machineInfo
-
-        # 単独で呼び出し可能
-        # 必要な値を生成
         self.generateRequiredParameters()
-        # ポジションからポジションまでの長さを算出
+        self.generateMovementCorrection()
         self.generatePtPDistance()
-
-        # リストを生成
+        self.createNodelist()
         self.createList()
 
-    # 必要なパラメータを算出
     def generateRequiredParameters(self):
         xList = []
         yList = []
@@ -143,20 +96,28 @@ class PaddyProperty:
         self.leftVal = yList[self.rightIndex], xList[self.rightIndex]
         self.rightVal = yList[self.rightIndex], xList[self.leftIndex]
 
-        # 左上の座標を格納
-        self.topLeft = yList[self.topIndex], xList[self.leftIndex]
+        # 高さと底辺を算出
+        self.vertical = round((geodesic(self.topVal, self.bottomVal).m * 100) / KABUMA)
+        self.beside = round((geodesic(self.leftVal, self.rightVal).m * 100) / JOUKAN)
 
-        self.generateMovementAndCorrection()
-        self.generateOutside()
-        self.generateNewMovementAndCorrection()
-        # 内周のポジションを確定させる
-        self.generateInside()
+    def createNodelist(self):
+        nodeList = []
+        # ポジションから
+        for i in range(len(self.paddyDistance)):
+            node = []
+            for j in range(len(self.paddyDistance)):
+                if self.paddyDistance[i][j] > 0:
+                    node.append(True)
+                elif self.paddyDistance[i][j] == 0:
+                    node.append(False)
+            nodeList.append(node)
+        self.nodeList = nodeList
 
     # 点と点の距離情報を算出
     def generatePtPDistance(self):
 
         #   距離情報を格納するリストを生成
-        paddyDistance = [[0.0 for _ in range(len(self.paddyFields))] for _ in range(len(self.paddyFields))]
+        paddyDistance = [[0.0 for i in range(len(self.paddyFields))] for j in range(len(self.paddyFields))]
 
         start_point = (self.paddyFields[0].y, self.paddyFields[0].x)
         end_point = (self.paddyFields[len(self.paddyFields) - 1].y, self.paddyFields[len(self.paddyFields) - 1].x)
@@ -172,8 +133,7 @@ class PaddyProperty:
 
         self.paddyDistance = paddyDistance
 
-    # 行、列軸の移動量を算出
-    def generateMovementAndCorrection(self):
+    def generateMovementCorrection(self):
         xMovement = []
         yMovement = []
         yPCount = 0
@@ -202,19 +162,19 @@ class PaddyProperty:
             #   縦の計算, 現在のポジションから次のポジションのtempのポジションを引いて
             #   「正」なら今のポジションは次のポジションより下である
             if (startPosition[0] - tempPosition[0]) < 0:
-                yMovement.append(round(-1 * y))
+                yMovement.append(round(-1 * (y / KABUMA)))
                 yPCount += 1
             else:
-                yMovement.append(round(y))
+                yMovement.append(round((y / KABUMA)))
                 yMCount += 1
 
             #   横の計算現在のポジションのtempのポジションから次のポジションを引いて
             #   「正」なら今のポジションは次のポジションより右である
             if (tempPosition[1] - nextPosition[1]) < 0:
-                xMovement.append(round(x))
+                xMovement.append(round(x / JOUKAN))
                 xPCount += 1
             else:
-                xMovement.append(round(-1 * x))
+                xMovement.append(round(-1 * (x / JOUKAN)))
                 xMCount += 1
 
             if yPCount < yMCount:
@@ -227,288 +187,191 @@ class PaddyProperty:
             else:
                 xCount = xPCount
 
-        # 縦横の移動量
         self.xMovement = xMovement
         self.yMovement = yMovement
-        # 補正値
         self.yCorrection = yCount
         self.xCorrection = xCount
-        # 最も高いノードから順番を算出
-        self.generateTopToEndNodeList()
-        self.checkClockWise()
 
-    # 配列が変更されたことによって移動量に変更が起こる
-    def generateNewMovementAndCorrection(self):
-        xMovement = []
-        yMovement = []
-        xMove = 0
-        yMove = 0
-        for i in self.topToEndNode:
-            xMove = self.outsideCircumferenceColumnList[i] - xMove
-            yMove = self.outsideCircumferenceRowList[i] - yMove
-        self.xMovement = xMovement
-        self.yMovement = yMovement
+    def createList(self):
+        #   配列の生成   列、行で生成
+        tempPaddyArray = [[0] * (self.beside + self.xCorrection) for _ in range(self.vertical + self.yCorrection)]
 
-    # 各ノードがつながっているリストを作成
-    def generateTopToEndNodeList(self):
+        topMovement = 0
+        # 左と上のポジションの番号を比較
+        # もっとも高いポジションを取得する
+        # 最も高い点を取得して、原点から右に動かす
+        print("xの移動量", self.xMovement)
+        print("yの移動量", self.yMovement)
+        # 時計回りなのか反時計回りなのかを算出
+        # clockWiseがTrueなら時計回り、Falseなら反時計回り
+        if self.xMovement[self.topIndex] > 0:
+            self.clockWise = True
+
+        # 時計回りなら、頂点がらみのxMovementは必ず正
+        # 反時計回りなら、頂点がらみのxMovementは必ず負
+        if self.clockWise:
+            print("時計回り")
+            if self.topIndex < self.leftIndex:
+                print("頂点が左よりIndexが小さい")
+                print("一番高い点:", self.topIndex)
+                print("一番左の点:", self.leftIndex)
+                for i in range(self.leftIndex, len(self.xMovement)):
+                    topMovement += self.xMovement[i]
+                    print("topMovement timeLapse", topMovement)
+                print("原点から右に", topMovement, "だけ移動")
+            else:
+                print("頂点が左よりIndexが大きい")
+                print("一番高い点:", self.topIndex)
+                print("一番左の点:", self.leftIndex)
+                for i in range(self.leftIndex, self.topIndex):
+                    topMovement += self.xMovement[i]
+                    print("topMovement timeLapse", topMovement)
+                    print(topMovement, "だけ移動")
+        else:
+            # 反時計回り
+            print("反時計回り")
+            if self.topIndex < self.leftIndex:
+                print("頂点が左よりIndexが小さい")
+                print("一番高い点:", self.topIndex)
+                print("一番左の点:", self.leftIndex)
+                for i in range(self.leftIndex, len(self.xMovement)):
+                    topMovement += self.xMovement[i]
+                    print("topMovement timeLapse", topMovement)
+                print("原点から右に", topMovement, "だけ移動")
+            else:
+                print("頂点が左よりIndexが大きい")
+                print("一番高い点:", self.topIndex)
+                print("一番左の点:", self.leftIndex)
+                for i in range(self.leftIndex, self.topIndex):
+                    topMovement += self.xMovement[i]
+                    print("topMovement timeLapse", topMovement)
+                    print(topMovement, "だけ移動")
+        self.paddyArray = tempPaddyArray
+        self.generateWallPositionList(topMovement)
+        return self.paddyArray
+
+    def generateWallPositionList(self, topMovement):
+        yPosition = 0
+        xPosition = topMovement
+
         nodeList = []
+        yPositionList = []
+        xPositionList = []
+
         for i in range(0, len(self.xMovement)):
             index = self.topIndex + i
             if index >= len(self.xMovement):
                 index -= len(self.xMovement)
+            xPosition += self.xMovement[index]
+            yPosition += self.yMovement[index]
+            if xPosition < 0:
+                xPosition = 0
+            if yPosition < 0:
+                yPosition = 0
+            xPositionList.append(xPosition)
+            yPositionList.append(yPosition)
             nodeList.append(index)
+        self.xPositionList = xPositionList
+        self.yPositionList = yPositionList
         self.topToEndNode = nodeList
+        print("xPositionList", xPositionList)
+        print("yPositionList", yPositionList)
+        print("nodeList", nodeList)
 
-    # ポリゴンのポジションを特定
-    def generateOutside(self):
-        columnArray = []
-        rowArray = []
-        doorwayColumnList = []
-        doorwayRowList = []
+        self.generatePosition()
 
-        for i in self.paddyFields:
-            edge = i.y, self.topLeft[1]
-            position = i.y, i.x
-            columnArray.append(round(math.ceil(geodesic(edge, position).m * 100)))
-
-            edge = self.topLeft[0], i.x
-            position = i.y, i.x
-            rowArray.append(round(math.ceil(geodesic(edge, position).m * 100)))
-        for i in self.startEndPosition:
-            edge = i.y, self.topLeft[1]
-            position = i.y, i.x
-            doorwayColumnList.append(
-                round(math.ceil(geodesic(edge, position).m * 100)))
-
-            edge = self.topLeft[0], i.x
-            position = i.y, i.x
-            doorwayRowList.append(round(math.ceil(geodesic(edge, position).m * 100)))
-
-        # ポジションの情報を格納
-        self.outsideCircumferenceRowList = rowArray
-        self.outsideCircumferenceColumnList = columnArray
-
-        # ポジションの行の場所を格納
-        self.doorwayColumnList = doorwayColumnList
-        self.doorwayRowList = doorwayRowList
-
-        # ポリゴンを回転させる
-        self.changeAngle()
-
-        # ポリゴンを縮小させる
-        self.paddyShrink()
-
-        # 一番右にあるポジションのindexを取得
-        self.arrayRightIndex = columnArray.index(max(columnArray))
-        # 一番左にあるポジションのindexを取得
-        self.arrayLeftIndex = columnArray.index(min(columnArray))
-        # 一番上にあるポジションのindexを取得
-        self.arrayTopIndex = rowArray.index(min(rowArray))
-        # 一番下にあるポジションのindexを取得
-        self.arrayBottomIndex = rowArray.index(max(rowArray))
-
-        # 一番左の値が負になる可能性があるためその調整を行う
-        if self.outsideCircumferenceColumnList[self.arrayLeftIndex] < 0:
-            move = self.outsideCircumferenceColumnList[self.arrayLeftIndex]
-            for i in self.topToEndNode:
-                after = self.outsideCircumferenceColumnList[i] - move
-                self.outsideCircumferenceColumnList[i] = after
-
-            for i in range(len(self.doorwayColumnList)):
-                after = self.doorwayColumnList[i] - move
-                self.doorwayColumnList[i] = after
-
-        # 縦と横を算出
-        self.outsideMaxRow = round(max(self.outsideCircumferenceRowList) + self.yCorrection)
-        self.outsideMaxColumn = round(max(self.outsideCircumferenceColumnList) + self.xCorrection)
-
-    # 行と列のポジションを格納しているリストの最適化
-    """
-    回転行列を用いて最も高い点(以後topと呼ぶ)を中心としてtopから一つ右の点(以後topLeftとする)をtopと同じ高さにするように変換を行う。
-    アフィン変換を用いてこれを実現topを一度原点に移動させ、そこからtopからtopLeftへの角度(以後radとする)を算出、
-    radをもとにそれぞれのポジションを同じradで反時計回りに回転させる。
-    次回からはxMovementとyMovementもこの仕様変更を受けて、処理を変更する必要があるため、それを行う。
-    """
-
-    # 時計回りか反時計回りかを判定後呼び出し可能
-    # ポリゴンを回転させる。
-    def changeAngle(self):
-        # 時計回りと反時計回りで処理を変えなければならない。
-        # 時計回り
-        # Yは行、Xは列
-        turnClock = False
-
+    def generatePosition(self):
+        for i in range(len(self.xPositionList)):
+            print(self.yPositionList[i-1], self.xPositionList[i-1], "ポジション")
+            self.paddyArray[self.yPositionList[i]][self.xPositionList[i]] = POSITION
         if self.clockWise:
-            topToLeft = self.topIndex + 1
+            print("時計回り")
+            for i in self.topToEndNode:
+                self.generateWall(
+                    self.xMovement[self.topToEndNode[i]],
+                    self.yMovement[self.topToEndNode[i]],
+                    self.xPositionList[i - 1],
+                    self.yPositionList[i - 1],
+                    i
+                )
         else:
-            topToLeft = self.topIndex - 1
-        if self.topIndex < topToLeft:
-            turnClock = True
-
-        topY = -1 * self.outsideCircumferenceRowList[self.topIndex]
-        topX = self.outsideCircumferenceColumnList[self.topIndex]
-        top = np.array([topX, topY])
-
-        topToLeftY = -1 * self.outsideCircumferenceRowList[topToLeft]
-        topToLeftX = self.outsideCircumferenceColumnList[topToLeft]
-        topToLeft = np.array([topToLeftX, topToLeftY])
-
-        topLeftTempY = topY
-        topLeftTempX = topToLeftX
-        topLeftTemp = np.array([topLeftTempX, topLeftTempY])
-
-        # べクトルを定義
-        vec_topLeftTemp = topLeftTemp - top
-        vec_topToLeft = topToLeft - top
-
-        # コサインの計算
-        length_vec_topLeftTemp = np.linalg.norm(vec_topLeftTemp)
-        length_vec_topToLeft = np.linalg.norm(vec_topToLeft)
-        inner_product = np.inner(vec_topLeftTemp, vec_topToLeft)
-        cos = inner_product / (length_vec_topLeftTemp * length_vec_topToLeft)
-
-        # 角度（ラジアン）の計算 rad = Θ
-        rad = np.arccos(cos)
-
-        for index in self.topToEndNode:
-            y = -1 * self.outsideCircumferenceRowList[index]
-            x = self.outsideCircumferenceColumnList[index]
-            moveNode = np.array([x, y, 1])
-            if turnClock:
-                # 時計回りで回転させる
-                rad = -1 * rad
-            x, y, z = util.rotation_o(moveNode, rad, topX, topY)
-            self.outsideCircumferenceRowList[index] = round(-1 * y)
-            self.outsideCircumferenceColumnList[index] = round(x)
-
-        # 配列の中のどこに出入り口があるのかを特定し回転させたあとの配列の位置
-        for index in range(len(self.doorwayColumnList)):
-            y = -1 * self.doorwayRowList[index]
-            x = self.doorwayColumnList[index]
-            moveNode = np.array([x, y, 1])
-            if turnClock:
-                # 時計回りで回転させる
-                rad = -1 * rad
-            x, y, z = util.rotation_o(moveNode, rad, topX, topY)
-            self.doorwayRowList[index] = round(-1 * y)
-            self.doorwayColumnList[index] = round(x)
-
-    # 田んぼを縮小する
-    def paddyShrink(self):
-        for index in self.topToEndNode:
-            y = -1 * self.outsideCircumferenceRowList[index]
-            x = self.outsideCircumferenceColumnList[index]
-            moveNode = np.array([x, y, 1])
-            x, y, z = util.paddyShrink(
-                moveNode,
-                1 / self.machineInfo.BetweenTheLines,
-                1 / self.machineInfo.BetweenStocks
-            )
-            self.outsideCircumferenceRowList[index] = round(-1 * y)
-            self.outsideCircumferenceColumnList[index] = round(x)
-        # 配列の中のどこに出入り口があるのかを特定し回転させたあとの配列の位置
-        for index in range(len(self.doorwayColumnList)):
-            y = -1 * self.doorwayRowList[index]
-            x = self.doorwayColumnList[index]
-            moveNode = np.array([x, y, 1])
-            x, y, z = util.paddyShrink(
-                moveNode,
-                1 / self.machineInfo.BetweenTheLines,
-                1 / self.machineInfo.BetweenStocks
-            )
-            self.doorwayRowList[index] = round(-1 * y)
-            self.doorwayColumnList[index] = round(x)
-
-    # 移動量を算出後に呼び出せる。
-    def checkClockWise(self):
-        # 正なら時計回り
-        if self.xMovement[self.topIndex] > 0:
-            self.clockWise = True
-
-    # 内周のポジションを確定させる
-    def generateInside(self):
-        insideRowList = []
-        insideColumnList = []
-        rowList = self.outsideCircumferenceRowList
-        columnList = self.outsideCircumferenceColumnList
-
-        # 各外周のポジションの斜めに位置するところがポリゴンの内周にあるのかを判別する
-        for i in self.topToEndNode:
-            diagonal = [
-                (-1, -1),
-                (-1, 1),
-                (1, -1),
-                (1, 1)
-            ]
-            for j in diagonal:
-                row = self.outsideCircumferenceRowList[i] + j[0]
-                column = self.outsideCircumferenceColumnList[i] + j[1]
-                if util.isPositionInsidePolygon(rowList, columnList, column, row):
-                    insideRowList.append(row)
-                    insideColumnList.append(column)
-                    break
-        self.insideCircumferenceRowList = insideRowList
-        self.insideCircumferenceColumnList = insideColumnList
-
-        self.insideMaxRow = max(self.insideCircumferenceRowList)
-        self.insideMaxColumn = max(self.insideCircumferenceColumnList)
-
-        # 配列を生成
-
-    def createList(self):
-        #   配列の生成   列、行で生成
-        paddyArray = [
-            [0] * (self.outsideMaxColumn + self.xCorrection)
-            for _ in range(self.outsideMaxRow + self.yCorrection)
-        ]
-        outside = [[0] * self.outsideMaxColumn
-                   for _ in range(3)]
-
-        inside = [0 for _ in range(self.outsideMaxColumn - 2)]
-
-        self.paddyArray = paddyArray
-        # 回転後のポジション情報を配列に描画
-        for index in self.topToEndNode:
-            util.fillPaddy(
-                self.paddyArray,
-                self.outsideCircumferenceRowList[index],
-                self.outsideCircumferenceColumnList[index],
-                pp.OUTSIDE_POSITION)
-
-        for index in range(len(self.doorwayColumnList)):
-            if self.startEndPosition[index].position == "start":
-                util.fillPaddy(
-                    self.paddyArray,
-                    self.doorwayRowList[index],
-                    self.doorwayColumnList[index],
-                    pp.START_POSITION
+            print("反時計回り")
+            for i in range(len(self.topToEndNode)):
+                self.generateWall(
+                    self.xMovement[self.topToEndNode[i]],
+                    self.yMovement[self.topToEndNode[i]],
+                    self.xPositionList[i - 1],
+                    self.yPositionList[i - 1],
+                    self.topToEndNode[i]
                 )
-            else:
-                util.fillPaddy(
-                    self.paddyArray,
-                    self.doorwayRowList[index],
-                    self.doorwayColumnList[index],
-                    pp.END_POSITION
-                )
-        for inside in range(len(self.insideCircumferenceRowList)):
-            util.fillPaddy(
-                self.paddyArray,
-                self.insideCircumferenceRowList[inside],
-                self.insideCircumferenceColumnList[inside],
-                pp.INSIDE_POSITION
-            )
-        util.exportToFile(paddyArray)
+        print(*self.paddyArray, sep="\n")
+        # 外周の情報をpaddyArray.csvに保存
+        # with open('C:/Users/196009/Desktop/paddyArray.csv', 'w', encoding='UTF-8') as f:
+        #     writer = csv.writer(f, lineterminator='\n')
+        #     writer.writerows(self.paddyArray)
 
-        rs = rp(
-            paddyArray=self.paddyArray,
-            doorwayRowList=self.doorwayRowList,
-            doorwayColumnList=self.doorwayColumnList,
-            insideRowList=self.insideCircumferenceRowList,
-            insideColumnList=self.insideCircumferenceColumnList,
-            outsideRowList=self.outsideCircumferenceRowList,
-            outsideColumnList=self.outsideCircumferenceColumnList,
-            outside=outside,
-            inside=inside,
-            machineInfo=self.machineInfo
-        )
-        rs.searchRoute()
+    def generateWall(self, xMovement, yMovement, xPosition, yPosition, node):
+        # 傾き
+        a = yMovement / xMovement
+        xMovementTo = xPosition + xMovement
+        yMovementTo = yPosition + yMovement
+        print("縦", self.vertical)
+        print("横", self.beside)
+        print(node)
+        if xMovement > 0:
+            # 現在のポジションを原点として、右に進む
+            print("xMovementは正")
+            print("傾き", a)
+            print("yPosition", yPosition)
+            print("xPosition", xPosition)
+            print("y軸の移動量", yMovement)
+            print("x軸の移動量", xMovement)
+            print("x軸移動後のポジション", xMovementTo)
+            print("y軸移動後のポジション", yMovementTo)
+            print(range(0, xMovement, 1))
+            for x in range(0, xMovement, 1):
+                self.drawWall(a, x, xPosition, yPosition, yMovement > 0)
+        else:
+            # 現在のポジションを原点として、左に進む
+            print("xMovementは負")
+            print("傾き", a)
+            print("yPosition", yPosition)
+            print("xPosition", xPosition)
+            print("y軸の移動量", yMovement)
+            print("x軸の移動量", xMovement)
+            print("x軸移動後のポジション", xMovementTo)
+            print("y軸移動後のポジション", yMovementTo)
+            print(range(0, xMovement, -1))
+            for x in range(0, xMovement, -1):
+                self.drawWall(a, x, xPosition, yPosition, yMovement > 0)
+
+    def drawWall(self, a, x, xPosition, yPosition, flag):
+        y = a * x
+        yTo = yPosition + math.floor(y)
+        xTo = xPosition + x
+        # if flag:
+
+        print("paddy[", yTo, "][", xTo, "]")
+        if self.paddyArray[yTo][xTo] == 0:
+            self.paddyArray[yTo][xTo] = WALL
+
+        #     for x in range(xPositionList[node[0]] + 1, xPositionList[node[1]] + 1, 1):
+        #         y = a * (xPositionList[node[0]] - x)
+        #         print("yの値", y)
+        #         print("xの値", x)
+        #         y = yPositionList[node[0]] + math.floor(y)
+        #         print("yの値加工後", y)
+        #         print("paddyArray[", y, "][", x, "]を壁とする")
+        #         if self.paddyArray[y][x] == 0:
+        #             self.paddyArray[y][x] = WALL
+        # else:
+        #     for x in range(xPositionList[node[0]] - 1, xPositionList[node[1]], -1):
+        #         y = a * (xPositionList[node[0]] - x)
+        #         print("yの値", y)
+        #         print("xの値", xPositionList[node[0]] - x)
+        #         y = yPositionList[node[0]] + math.floor(y)
+        #         print("yの値加工後", y)
+        #         print("paddyArray[", y, "][", x, "]を壁とする")
+        #         if self.paddyArray[y][x] == 0:
+        #             self.paddyArray[y][x] = WALL
+        # return self.paddyArray

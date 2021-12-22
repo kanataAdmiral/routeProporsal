@@ -396,7 +396,7 @@
                             point.y = layer.getLatLng().lat;
                             point.x = layer.getLatLng().lng;
                             start_end_point.push(point);
-                            Position.startEndPosition = start_end_point
+                            Position.StartEndPosition = start_end_point
                             start_end_point_json = JSON.stringify(Position);
                         }else if(layer.paddyEndPosition){
                             const point = {};
@@ -405,7 +405,7 @@
                             point.y = layer.getLatLng().lat;
                             point.x = layer.getLatLng().lng;
                             start_end_point.push(point);
-                            Position.startEndPosition = start_end_point
+                            Position.StartEndPosition = start_end_point
                             start_end_point_json = JSON.stringify(Position);
                         }
                     }
@@ -430,15 +430,6 @@
                     $('#resultGET').text('GET処理失敗.');
                 });
             });
-
-            {#$.getJSON("{% static 'rection1/341002019_5.geojson' %}", function(data) {#}
-            {#    const geojson = L.geoJson(data, {#}
-            {#        onEachFeature: function (feature, layer) {#}
-            {#            layer.bindPopup(feature.properties.耕地の種類);#}
-            {#        }#}
-            {#    });#}
-            {#    geojson.addTo(map);#}
-            {#);#}
         }
     </script>
 </body>
