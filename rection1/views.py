@@ -3,10 +3,9 @@ from django.http import HttpResponse
 from . import form
 from .util import util
 from .exception import Exception
-from .paddy import paddy as pp
-from .paddy.parameter import PaddyParameter
+from rection1.paddy.Model.paddyModel import PaddyParameter, StartEndPosition
 from .paddy.paddyproperty import PaddyProperty
-from .paddy.parameter import StartEndPosition
+from rection1.paddy.Model.machineModel import Machine
 
 
 def login(request):
@@ -60,20 +59,12 @@ def position(request):
         # 受け取った値をJSONに整形
         paddyFields: PaddyParameter = PaddyParameter.from_json(pram)
         startEndPointInfo: StartEndPosition = StartEndPosition.from_json(start_end_point)
+        machineInfo = Machine(plant=6, length=3320, width=1920)
 
-        p = PaddyProperty(paddyFields.paddyFields, startEndPointInfo)
-        # print(*p.paddyArray, sep="\n")
-        # print("縦の長さ", p.vertical)
-        # print("横の長さ", p.beside)
-        # print("nodeList", *p.nodeList, sep="\n")
-        # print("topToEndNode", p.topToEndNode)
-        # print("ポジションの距離")
-        # print("上", p.topIndex)
-        # print("下", p.bottomIndex)
-        # print("右", p.rightIndex)
-        # print("左", p.leftIndex)
-        # print(*p.paddyDistance, sep="\n")
-        # print("始点終点の情報", p.startEndPosition)
+        try:
+            p = PaddyProperty(paddyFields.paddyFields, startEndPointInfo.startEndPosition, machineInfo)
+        except Exception.PointException as e:
+            return HttpResponse(e)
         return HttpResponse(p.paddyDistance)
     else:
         return HttpResponse("違うメソッドを使用しています。")
