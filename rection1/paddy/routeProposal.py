@@ -1,5 +1,6 @@
 from rection1.paddy.Model.machineModel import Machine
 from ..paddy.machineMovement import machineMovement as m
+from ..paddy.machineMovement.moveparameter import movementList
 
 
 class RouteProposal:
@@ -18,8 +19,6 @@ class RouteProposal:
     outside: list[list]
 
     machineInfo: Machine
-
-    movementList: list
 
     def __init__(self,
                  paddyArray,
@@ -47,7 +46,9 @@ class RouteProposal:
     def searchRoute(self):
         outsideList = []
         insideList = []
-        movementList = []
+        AllStepMovementList = []
+        tempMovementList = movementList
+
         for i in range(len(self.outsideCircumferenceRowList)):
             outsideList.append((self.outsideCircumferenceRowList[i], self.outsideCircumferenceColumnList[i]))
         for i in range(len(self.insideRowList)):
@@ -57,43 +58,66 @@ class RouteProposal:
         insideColumnLength = max(self.insideColumnList) - self.insideColumnList[0]
         insideRowLength = max(self.insideRowList) - self.insideRowList[0]
 
-        print(insideColumnLength)
-        print(insideRowLength)
-
         # 出入り口が各ポジションのどこに近いのかを見つける
         if insideColumnLength % 2 == 0:
             print("偶数")
             # 田んぼの内周が偶数ならまずは下に向かう
             # 最も左上のポジションを取得
             leftTopPosition = self.insideRowList[0], self.insideColumnList[0]
-            moveList, startPosition = m.goStartPosition(leftTopPosition,
-                                                        doorwayList,
-                                                        self.outsideCircumferenceRowList,
-                                                        self.outsideCircumferenceColumnList)
-            movementList.append(moveList)
+            oneStepMovementList, startPosition = m.goStartPosition(
+                leftTopPosition,
+                doorwayList,
+                self.outsideCircumferenceRowList,
+                self.outsideCircumferenceColumnList
+            )
+
+            AllStepMovementList.append(oneStepMovementList)
             # 0が行, 1が列
             print(startPosition[1])
             # 列を回す
             nowRowPosition = startPosition[0]
             nowColumnPosition = startPosition[1]
             for i in range(startPosition[1], insideColumnLength + 1):
+                print(insideColumnLength, "-", nowColumnPosition, "=", insideColumnLength - nowColumnPosition)
+                print(nowColumnPosition)
                 if (insideColumnLength - nowColumnPosition) % 2 == 0:
                     print("偶数")
+                    oneStepMovementList, startPosition = m.goStartPosition(
+                        leftTopPosition,
+                        doorwayList,
+                        self.outsideCircumferenceRowList,
+                        self.outsideCircumferenceColumnList
+                    )
                 else:
                     print("奇数")
+                    # nowPosition =
+                    # targetPosition =
+                    oneStepMovementList, startPosition = m.goStartPosition(
+                        leftTopPosition,
+                        doorwayList,
+                        self.outsideCircumferenceRowList,
+                        self.outsideCircumferenceColumnList
+                    )
+                AllStepMovementList.append(oneStepMovementList)
+            tempMovementList = movementList(AllStepMovementList)
+
+            print(tempMovementList)
+            print(tempMovementList.to_json(indent=4, ensure_ascii=False))
 
         else:
             print("奇数")
             # 田んぼの内周が奇数ならまず上に向かう
             # 最も左下のポジションを取得
             leftTopPosition = insideRowLength, self.insideColumnList[0]
-            moveList, startPosition = m.goStartPosition(
+            oneStepMovementList, startPosition = m.goStartPosition(
                 leftTopPosition,
                 doorwayList,
                 self.outsideCircumferenceRowList,
                 self.outsideCircumferenceColumnList
             )
-            movementList.append(moveList)
+
+            AllStepMovementList.append(oneStepMovementList)
+
             nowRowPosition = startPosition[0]
             nowColumnPosition = startPosition[1]
             for i in range(startPosition[0], insideColumnLength + 1):
@@ -101,3 +125,13 @@ class RouteProposal:
                     print("偶数")
                 else:
                     print("奇数")
+
+    @staticmethod
+    def showList(p):
+        print(p)
+        for i in p:
+            print(i)
+            for j in i.stepMoveList:
+                print(j.vector)
+                print(j.icon)
+                print(j.string)

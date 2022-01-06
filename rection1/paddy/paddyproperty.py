@@ -5,7 +5,7 @@ from .routeProposal import RouteProposal as rp
 from rection1.paddy.Model.paddyModel import Paddy, Position
 from geopy.distance import geodesic
 from ..paddy.Model.machineModel import Machine
-from .Parameters import paddyParameters as pp
+from rection1.paddy.Parameters import paddyParameters as pp
 from ..util import util
 
 
@@ -13,9 +13,6 @@ from ..util import util
 memo
 次回の作業:
 
-時間がかかるためそれの改善
-->
-そもそも外周を描画する必要はない
 """
 
 
