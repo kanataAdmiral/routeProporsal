@@ -1,5 +1,4 @@
-
-from ..machineMovement.moveparameter import *
+from rection1.paddy.machineMovement.moveparameter import *
 
 START_POSITION = "S"
 END_POSITION = "E"
@@ -8,52 +7,50 @@ INSIDE_POSITION = "I"
 
 
 class movement:
-    move = None
+    vector: tuple
+    string: str
+    icon: str
+
     def __init__(self, up, left):
-        move = moveParameter
         if up < 0:
             if left < 0:
                 # 左上
-                move.vector = -1, -1
-                move.string = "上左"
-                move.icon = "↖"
+                self.vector = -1, -1
+                self.string = "上左"
+                self.icon = "↖"
             elif left > 0:
                 # 右上
-                move.vector = -1, 1
-                move.string = "上右"
-                move.icon = "↗"
+                self.vector = -1, 1
+                self.string = "上右"
+                self.icon = "↗"
             else:
                 # 上
-                move.vector = -1, 0
-                move.string = "上"
-                move.icon = "↑"
+                self.vector = -1, 0
+                self.string = "上"
+                self.icon = "↑"
         elif up > 0:
             if left < 0:
-                move.vector = 1, -1
-                move.string = "下左"
-                move.icon = "↙"
+                self.vector = 1, -1
+                self.string = "下左"
+                self.icon = "↙"
             elif left > 0:
-                move.vector = 1, 1
-                move.string = "下右"
-                move.icon = "↘"
+                self.vector = 1, 1
+                self.string = "下右"
+                self.icon = "↘"
             else:
-                move.vector = 1, 0
-                move.string = "下"
-                move.icon = "↓"
+                self.vector = 1, 0
+                self.string = "下"
+                self.icon = "↓"
         else:
             if left < 0:
-                move.vector = 0, -1
-                move.string = "左"
-                move.icon = "←"
+                self.vector = 0, -1
+                self.string = "左"
+                self.icon = "←"
             elif left > 0:
-                move.vector = 0, 1
-                move.string = "右"
-                move.icon = "→"
+                self.vector = 0, 1
+                self.string = "右"
+                self.icon = "→"
             else:
-                move.vector = 0, 0
-                move.string = "終点"
-                move.icon = "・"
-        self.move = move
-        print(move.vector)
-        print(move.string)
-        print(move.icon)
+                self.vector = 0, 0
+                self.string = "終点"
+                self.icon = "・"
