@@ -1,10 +1,11 @@
 import math
 import numpy as np
+import time
 
 from .routeProposal import RouteProposal as rp
-from rection1.paddy.Model.paddyModel import Paddy, Position
+from rection1.paddy.Repository.paddyRepository import Paddy, Position
 from geopy.distance import geodesic
-from ..paddy.Model.machineModel import Machine
+from ..paddy.Repository.machineRepository import Machine
 from rection1.paddy.Parameters import paddyParameters as pp
 from ..util import util
 
@@ -112,7 +113,7 @@ class PaddyProperty:
         self.generatePtPDistance()
 
         # リストを生成
-        self.createList()
+        self.moveList = self.createList()
 
     # 必要なパラメータを算出
     def generateRequiredParameters(self):
@@ -403,6 +404,7 @@ class PaddyProperty:
             )
             self.outsideCircumferenceRowList[index] = round(-1 * y)
             self.outsideCircumferenceColumnList[index] = round(x)
+
         # 配列の中のどこに出入り口があるのかを特定し回転させたあとの配列の位置
         for index in range(len(self.doorwayColumnList)):
             y = -1 * self.doorwayRowList[index]
@@ -428,22 +430,17 @@ class PaddyProperty:
         insideColumnList = []
         rowList = self.outsideCircumferenceRowList
         columnList = self.outsideCircumferenceColumnList
-
-        # 各外周のポジションの斜めに位置するところがポリゴンの内周にあるのかを判別する
-        for i in self.topToEndNode:
-            diagonal = [
-                (-1, -1),
-                (-1, 1),
-                (1, -1),
-                (1, 1)
-            ]
-            for j in diagonal:
-                row = self.outsideCircumferenceRowList[i] + j[0]
-                column = self.outsideCircumferenceColumnList[i] + j[1]
-                if util.isPositionInsidePolygon(rowList, columnList, column, row):
-                    insideRowList.append(row)
-                    insideColumnList.append(column)
-                    break
+        for index in self.topToEndNode:
+            y = -1 * self.outsideCircumferenceRowList[index]
+            x = self.outsideCircumferenceColumnList[index]
+            moveNode = np.array([x, y, 1])
+            x, y, z = util.inside_paddy(
+                moveNode,
+                (self.outsideMaxColumn - 2) / self.outsideMaxColumn,
+                (self.outsideMaxRow - 2) / self.outsideMaxRow
+            )
+            insideRowList.append(round(-1 * y))
+            insideColumnList.append(round(x))
         self.insideCircumferenceRowList = insideRowList
         self.insideCircumferenceColumnList = insideColumnList
 
@@ -451,13 +448,17 @@ class PaddyProperty:
         self.insideMaxColumn = max(self.insideCircumferenceColumnList)
 
         # 配列を生成
-
     def createList(self):
         #   配列の生成   列、行で生成
         paddyArray = [
             [0] * (self.outsideMaxColumn + self.xCorrection)
             for _ in range(self.outsideMaxRow + self.yCorrection)
         ]
+        inside_paddy = [
+            [0] * (self.outsideMaxColumn + self.xCorrection)
+            for _ in range(self.outsideMaxRow + self.yCorrection)
+        ]
+
         outside = [[0] * self.outsideMaxColumn
                    for _ in range(3)]
 
@@ -508,4 +509,23 @@ class PaddyProperty:
             inside=inside,
             machineInfo=self.machineInfo
         )
-        rs.searchRoute()
+        moveList = rs.searchRoute()
+
+        for i in range(len(inside_paddy)):
+            for j in range(len(inside_paddy[0])):
+                if util.isPositionInsidePolygon(
+                        self.outsideCircumferenceRowList,
+                        self.outsideCircumferenceColumnList,
+                        j,
+                        i
+                ):
+                    util.fill_position(inside_paddy, j, i, "I")
+                else:
+                    util.fill_position(inside_paddy, j, i, "O")
+
+        util.exportToFile(inside_paddy, fileName='paddyArray')
+        for i in moveList.AllMoveList:
+            for j in i.stepMoveList:
+                util.fillPaddyRoute(self.paddyArray, j)
+        util.exportToFile(self.paddyArray, fileName='paddyRoute')
+        return moveList
