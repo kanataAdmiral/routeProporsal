@@ -1,6 +1,6 @@
-from rection1.paddy.Repository.machineRepository import Machine
-from ..paddy.machineMovement import machineMovement as m
-from rection1.paddy.Repository.moveRepository.move import movementList
+from ..paddy.Repository.machineRepository import Machine
+from ..paddy.machineMovement.machineMovement import machineMovement as m
+from ..paddy.Repository.moveRepository.move import movementList
 
 
 class RouteProposal:
@@ -20,6 +20,8 @@ class RouteProposal:
 
     machineInfo: Machine
 
+    rowFlag: bool
+
     def __init__(self,
                  paddyArray,
                  outsideRowList,
@@ -30,7 +32,8 @@ class RouteProposal:
                  doorwayColumnList,
                  outside,
                  inside,
-                 machineInfo
+                 machineInfo,
+                 rowFlag
                  ):
         self.paddyArray = paddyArray
         self.outsideCircumferenceRowList = outsideRowList
@@ -42,146 +45,39 @@ class RouteProposal:
         self.outside = outside
         self.inside = inside
         self.machineInfo = machineInfo
+        self.rowFlag = rowFlag
 
     def searchRoute(self):
-        outsideList = []
-        insideList = []
         AllStepMovementList = []
-        routeNumber = 1
+        routeNumber = 0
         plant = False
-
-        for i in range(len(self.outsideCircumferenceRowList)):
-            outsideList.append((self.outsideCircumferenceRowList[i], self.outsideCircumferenceColumnList[i]))
-        for i in range(len(self.insideRowList)):
-            insideList.append((self.insideRowList[i], self.insideColumnList[i]))
 
         doorwayList = (self.doorwayRowList[0], self.doorwayColumnList[0])
 
-        insideColumnLength = max(self.insideColumnList) - self.insideColumnList[0] + 1
-        insideRowLength = max(self.insideRowList) - self.insideRowList[0] + 1
+        insideColumnLength = max(self.insideColumnList) - min(self.insideColumnList) + 1
+        insideRowLength = max(self.insideRowList) - min(self.insideRowList) + 1
 
         outSideColumnLength = max(self.outsideCircumferenceColumnList) - self.outsideCircumferenceColumnList[0] + 1
         outSideRowLength = max(self.outsideCircumferenceRowList) - self.outsideCircumferenceRowList[0] + 1
 
-        rowList = self.insideRowList
-        columnList = self.insideColumnList
+        print(self.outsideCircumferenceRowList)
+        print(self.outsideCircumferenceColumnList)
+        print()
+        print(self.insideRowList)
+        print(self.insideColumnList)
 
-        rowList.sort()
-        columnList.sort()
+        outsideRS = m(rowList=self.outsideCircumferenceRowList, columnList=self.outsideCircumferenceColumnList)
+        insideRS = m(rowList=self.insideRowList, columnList=self.insideColumnList)
 
-        # 出入り口が各ポジションのどこに近いのかを見つける
-        if insideColumnLength % 2 == 0:
-            # print("偶数")
-            # 田んぼの内周が偶数ならまずは下に向かう
-            # 最も左上のポジションを取得
-            leftTopPosition = self.insideRowList[0], self.insideColumnList[0]
-            oneStepMovementList, startPosition = m.goStartPosition(
-                leftTopPosition,
-                doorwayList,
-                self.outsideCircumferenceRowList,
-                self.outsideCircumferenceColumnList,
-                plant
-            )
-            AllStepMovementList.append(oneStepMovementList)
-
-            # 内周を進行する
-            # 0が行, 1が列
-            # print(startPosition[1])
-            # 列を回す
-            plant = True
-            print("外周の列の長さ", outSideColumnLength)
-            print("内周の列の長さ", insideColumnLength)
-            print("range", range(startPosition[1], outSideColumnLength - 1))
-            for i in range(startPosition[1], outSideColumnLength - 1):
-                routeNumber += 1
-                # print("i", i)
-                # print(insideColumnLength, "-", i, "=", insideColumnLength - i)
-                # print("nowColumnPosition", i)
-                # print("doorwayList", doorwayList)
-                # print("leftTopPosition", leftTopPosition)
-                # print("i", i)
-                if (insideColumnLength - i) % 2 == 0:
-                    # print("偶数")
-                    targetPosition = insideRowLength, i
-                    # print("targetPosition", targetPosition)
-                    oneStepMovementList, startPosition = m.goStartPosition(
-                        targetPosition,
-                        startPosition,
-                        self.outsideCircumferenceRowList,
-                        self.outsideCircumferenceColumnList,
-                        plant
-                    )
-                    # print("現在の位置", startPosition)
-                else:
-                    # print("奇数")
-                    targetPosition = 1, i
-                    # print("targetPosition", targetPosition)
-                    oneStepMovementList, startPosition = m.goStartPosition(
-                        targetPosition,
-                        startPosition,
-                        self.outsideCircumferenceRowList,
-                        self.outsideCircumferenceColumnList,
-                        plant
-                    )
-                    # print("現在の位置", startPosition)
-                AllStepMovementList.append(oneStepMovementList)
-            insideRouteOverPosition = startPosition
-            print(insideRouteOverPosition)
-        else:
-            # print("奇数")
-            # 田んぼの内周が奇数ならまずは上に向かう
-            # 最も左下のポジションを取得
-            leftBottomPosition = self.insideRowList[0], self.insideColumnList[0]
-            oneStepMovementList, startPosition = m.goStartPosition(
-                leftBottomPosition,
-                doorwayList,
-                self.outsideCircumferenceRowList,
-                self.outsideCircumferenceColumnList,
-                plant
-            )
-            AllStepMovementList.append(oneStepMovementList)
-            plant = True
-            print("外周の列の長さ", outSideColumnLength)
-            print("内周の列の長さ", insideColumnLength)
-            print("range", range(startPosition[1], outSideColumnLength - 1))
-            for i in range(startPosition[1], outSideColumnLength - 1):
-                routeNumber += 1
-                print("i", i)
-                # print(insideColumnLength, "-", i, "=", insideColumnLength - i)
-                # print("nowColumnPosition", i)
-                # print("doorwayList", doorwayList)
-                # print("leftTopPosition", leftTopPosition)
-                # print("i", i)
-                if (insideColumnLength - i) % 2 == 0:
-                    # print("偶数")
-                    targetPosition = insideRowLength, i
-                    # print("targetPosition", targetPosition)
-                    oneStepMovementList, startPosition = m.goStartPosition(
-                        targetPosition,
-                        startPosition,
-                        self.outsideCircumferenceRowList,
-                        self.outsideCircumferenceColumnList,
-                        plant
-                    )
-                    # print("現在の位置", startPosition)
-                else:
-                    # print("奇数")
-                    targetPosition = 1, i
-                    # print("targetPosition", targetPosition)
-                    oneStepMovementList, startPosition = m.goStartPosition(
-                        targetPosition,
-                        startPosition,
-                        self.outsideCircumferenceRowList,
-                        self.outsideCircumferenceColumnList,
-                        plant
-                    )
-                    # print("現在の位置", startPosition)
-                AllStepMovementList.append(oneStepMovementList)
-            insideRouteOverPosition = startPosition
-            print(insideRouteOverPosition)
+        startPosition = self.search(insideRowLength, insideColumnLength, outsideRS, insideRS,
+                                    doorwayList, plant, routeNumber, AllStepMovementList)
 
         # 外周を描画
         print("現在のポジションを表示", startPosition)
+
+        # TODO
+        """外周を描画する処理を記述"""
+
         tempMovementList = movementList(
             tuple(AllStepMovementList),
             max(self.outsideCircumferenceRowList),
@@ -191,3 +87,117 @@ class RouteProposal:
         # print(tempMovementList.to_json(indent=4, ensure_ascii=False))
 
         return tempMovementList
+
+    def search(self, insideRowLength, insideColumnLength, outsideRS, insideRS,
+               doorwayList, plant, routeNumber, AllStepMovementList):
+        # 出入り口が各ポジションのどこに近いのかを見つける
+        print("出入り口からスタートラインに行く")
+        if insideColumnLength % 2 == 0:
+            # print("偶数")
+            # 田んぼの内周が偶数ならまずは下に向かう
+            # 最も左上のポジションを取得
+            leftTopPosition = self.insideRowList[0], self.insideColumnList[0]
+            oneStepMovementList, startPosition, routeNumber = outsideRS.goStartPosition(
+                leftTopPosition,
+                doorwayList,
+                plant,
+                routeNumber
+            )
+            AllStepMovementList.append(oneStepMovementList)
+            plant = True
+            # 内周を検索
+            return search_inside_even(startPosition, insideColumnLength, insideRowLength,
+                                      insideRS, plant, routeNumber, AllStepMovementList)
+        else:
+            # 内周を進行する
+            # 0が行, 1が列
+            # print(startPosition[1])
+            # 列を回す
+            # print("奇数")
+            # 田んぼの内周が奇数ならまずは上に向かう
+            # 最も左下のポジションを取得
+            leftBottomPosition = self.insideRowList[0], self.insideColumnList[0]
+            oneStepMovementList, startPosition, routeNumber = outsideRS.goStartPosition(
+                leftBottomPosition,
+                doorwayList,
+                plant,
+                routeNumber
+            )
+            AllStepMovementList.append(oneStepMovementList)
+            plant = True
+
+            # 内周を検索
+            return search_inside_odd(startPosition, insideColumnLength, insideRowLength,
+                                     insideRS, plant, routeNumber, AllStepMovementList)
+
+
+def search_inside_even(startPosition, insideColumnLength, insideRowLength,
+                       insideRS, plant, routeNumber, AllStepMovementList):
+    print("現在の内周は偶数だったため今から下に向かってルート検索を開始する")
+    for i in range(startPosition[1], insideColumnLength):
+        # print("i", i)
+        # print(insideColumnLength, "-", i, "=", insideColumnLength - i)
+        # print("nowColumnPosition", i)
+        # print("doorwayList", doorwayList)
+        # print("leftTopPosition", leftTopPosition)
+        # print("i", i)
+        if (insideColumnLength - i) % 2 == 0:
+            # print("偶数")
+            targetPosition = insideRowLength, i
+            # print("targetPosition", targetPosition)
+            oneStepMovementList, startPosition, routeNumber = insideRS.goStartPosition(
+                targetPosition,
+                startPosition,
+                plant,
+                routeNumber
+            )
+            # print("現在の位置", startPosition)
+        else:
+            # print("奇数")
+            targetPosition = 1, i
+            # print("targetPosition", targetPosition)
+            oneStepMovementList, startPosition, routeNumber = insideRS.goStartPosition(
+                targetPosition,
+                startPosition,
+                plant,
+                routeNumber
+            )
+            # print("現在の位置", startPosition)
+        AllStepMovementList.append(oneStepMovementList)
+    return startPosition
+
+
+def search_inside_odd(startPosition, insideColumnLength, insideRowLength,
+                      insideRS, plant, routeNumber, AllStepMovementList):
+    print("現在の内周は奇数だったため今から上に向かってルート検索を開始する")
+    for i in range(startPosition[1], insideColumnLength):
+        print("i", i)
+        # print(insideColumnLength, "-", i, "=", insideColumnLength - i)
+        # print("nowColumnPosition", i)
+        # print("doorwayList", doorwayList)
+        # print("leftTopPosition", leftTopPosition)
+        # print("i", i)
+        if (insideColumnLength - i) % 2 == 0:
+            # print("偶数")
+            targetPosition = insideRowLength, i
+            # print("targetPosition", targetPosition)
+            oneStepMovementList, startPosition, routeNumber = insideRS.goStartPosition(
+                targetPosition,
+                startPosition,
+                plant,
+                routeNumber
+            )
+            # print("現在の位置", startPosition)
+        else:
+            # print("奇数")
+            targetPosition = 1, i
+            # print("targetPosition", targetPosition)
+            oneStepMovementList, startPosition, routeNumber = insideRS.goStartPosition(
+                targetPosition,
+                startPosition,
+                plant,
+                routeNumber
+            )
+            # print("現在の位置", startPosition)
+        AllStepMovementList.append(oneStepMovementList)
+    return startPosition

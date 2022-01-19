@@ -3,57 +3,102 @@ from ..Parameters.paddyParameters import movement
 from ...util import util
 
 
-# 一番最初に呼び出される
-def goStartPosition(targetPosition, startPosition, insideRowList, insideColumnList, plant):
-    # 動きのフラグ、Falseならそこが終点
-    moveFlag = True
+class machineMovement:
+    polygonRowList: list
+    polygonColumnList: list
 
-    oneStepMovementList = []
-    up = targetPosition[0] - startPosition[0]
-    left = targetPosition[1] - startPosition[1]
+    def __init__(self, rowList, columnList):
+        self.polygonRowList = rowList
+        self.polygonColumnList = columnList
 
-    nowRowPosition = startPosition[0]
-    nowColumnPosition = startPosition[1]
+    # 一番最初に呼び出される
+    def goStartPosition(self, targetPosition, startPosition, plant, number):
+        # 動きのフラグ、Falseならそこが終点
+        moveFlag = True
 
-    # print("行", up, "列", left)
-    # print(insideRowList)
-    # print(insideColumnList)
+        oneStepMovementList = []
+        up = targetPosition[0] - startPosition[0]
+        left = targetPosition[1] - startPosition[1]
 
-    # print("開始", nowRowPosition, nowColumnPosition)
-    # print("目標", targetPosition)
-    while moveFlag:
-        move = movement(up, left)
-        if nowRowPosition == targetPosition[0] and nowColumnPosition == targetPosition[1]:
-            # print("目標到達")
-            moveFlag = False
-        else:
-            vector = move.vector
-            string = move.string
-            icon = move.icon
+        now_row_position = startPosition[0]
+        now_column_position = startPosition[1]
 
-            rowVector = -1 * move.vector[0]
-            columnVector = -1 * move.vector[1]
+        # print("行", up, "列", left)
+        # print(insideRowList)
+        # print(insideColumnList)
 
-            up += rowVector
-            left += columnVector
-            # print(nowRowPosition, ",", nowColumnPosition, "はポリゴンの中にある")
-            oneStepMovementList.append(
-                moveParameter(
-                    vector,
-                    string,
-                    icon,
-                    nowRowPosition,
-                    nowColumnPosition,
-                    util.isPositionInsidePolygon(
-                        insideRowList,
-                        insideColumnList,
-                        nowColumnPosition,
-                        nowRowPosition
-                    ) and plant
+        # print("開始", nowRowPosition, nowColumnPosition)
+        show_target_position = targetPosition[0] + 1, targetPosition[1] + 1
+        print("目標", show_target_position)
+        while moveFlag:
+            move = movement(up, left, number)
+            if now_row_position == targetPosition[0] and now_column_position == targetPosition[1]:
+                break
+            else:
+                number += 1
+                vector = move.vector
+                string = move.string
+                icon = move.icon
+
+                rowVector = -1 * move.vector[0]
+                columnVector = -1 * move.vector[1]
+
+                up += rowVector
+                left += columnVector
+
+                # 現在のポジションから一つ次のポジションを見る
+                next_row_position = now_row_position + move.vector[0]
+                next_column_position = now_column_position + move.vector[1]
+                # 次のポジションがpolygonの中にあるのかを判定
+                in_polygon_flag = util.isPositionInsidePolygon(
+                    self.polygonRowList,
+                    self.polygonColumnList,
+                    next_column_position,
+                    next_row_position
                 )
-            )
+                if plant:
+                    # 植える、かつ、次のポジションがpolygonの中にあるなら
+                    if in_polygon_flag:
+                        oneStepMovementList.append(
+                            moveParameter(
+                                vector,
+                                string,
+                                icon,
+                                number,
+                                now_row_position,
+                                now_column_position,
+                                True
+                            )
+                        )
+                    # 植える、けど、次のポジションがpolygonの中にいないなら
+                    # 近くに
+                    else:
+                        oneStepMovementList.append(
+                            moveParameter(
+                                vector,
+                                string,
+                                icon,
+                                number,
+                                now_row_position,
+                                now_column_position,
+                                False
+                            )
+                        )
+                else:
+                    oneStepMovementList.append(
+                        moveParameter(
+                            vector,
+                            string,
+                            icon,
+                            number,
+                            now_row_position,
+                            now_column_position,
+                            False
+                        )
+                    )
 
-            nowRowPosition += move.vector[0]
-            nowColumnPosition += move.vector[1]
-    tempMoveList = moveList(tuple(oneStepMovementList))
-    return tempMoveList, (nowRowPosition, nowColumnPosition)
+                # 現在のポジションを更新
+                now_row_position = next_row_position
+                now_column_position = next_column_position
+        tempMoveList = moveList(tuple(oneStepMovementList))
+        return tempMoveList, (now_row_position, now_column_position), number

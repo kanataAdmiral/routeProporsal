@@ -8,6 +8,7 @@ class moveParameter:
     vector: tuple[int, int]
     string: str
     icon: str
+    number: int
     rowPosition: int
     columnPosition: int
     plant: bool
