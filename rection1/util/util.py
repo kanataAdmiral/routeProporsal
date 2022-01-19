@@ -4,9 +4,12 @@ import math
 import numpy as np
 
 from ..models import User
-from sympy.geometry import Point, Polygon
+
+from turfpy.measurement import boolean_point_in_polygon
+from geojson import Point, Polygon, Feature
+
 from ..exception import Exception
-from ..paddy.Parameters import paddyParameters as pp
+from rection1.paddy.Parameters import paddyParameters as pp
 
 
 salt = bytes("b'pelob/9gQSxIsZ66wlu+wblqY8wuqT0HQl7TODMotyA='", 'utf-8')
@@ -34,16 +37,17 @@ def login_check(user_id, loginPass):
 
 def isPositionInsidePolygon(rowList, columnList, x, y) -> bool:
     points = []
+    inside_poly = []
 
     # ポリゴンのポジション情報を取得
     for i in range(len(rowList)):
-        p = Point(columnList[i], rowList[i])
-        points.append(p)
-    poly = Polygon(*points)
+        points.append((columnList[i], rowList[i]))
+    inside_poly.append(points)
+    poly = Polygon(inside_poly)
 
-    point = Point(x, y)
+    point = Feature(geometry=Point((x, y)))
 
-    return poly.encloses_point(point)
+    return boolean_point_in_polygon(point, poly)
 
 
 def fillPaddy(paddyArray, row, column, string):
@@ -64,12 +68,42 @@ def fillPaddy(paddyArray, row, column, string):
         print("paddyArray[", row, "][", column, "]is not void")
 
 
-def exportToFile(paddyArray, fileName='paddyArray'):
+def fill_position(paddyArray, x, y, string):
+    if paddyArray[y][x] == 0:
+        paddyArray[y][x] = string
+    else:
+        print("paddyArray is not void")
+
+
+def fillPaddyRoute(paddyArray, mp):
+    x = mp.columnPosition
+    y = mp.rowPosition
+    if paddyArray[y][x] == 0:
+        paddyArray[y][x] = fillIcon(mp.icon, mp.plant)
+    else:
+        paddyArray[y][x] = paddyArray[y][x] + fillIcon(mp.icon, mp.plant)
+
+
+def fillIcon(icon, plant):
+    if plant:
+        return icon
+    else:
+        if icon == '↑':
+            return '⇡'
+        elif icon == '↓':
+            return '⇣'
+        elif icon == '→':
+            return '⇢'
+        elif icon == '←':
+            return '⇠'
+
+
+def exportToFile(list, fileName='paddyArray'):
     filePath = 'C:/Users/196009/Desktop/' + fileName + '.csv'
     print(filePath, "に書き込み中")
-    with open(filePath, 'w', encoding='UTF-8') as f:
+    with open(filePath, 'w', encoding='utf_8_sig') as f:
         writer = csv.writer(f, lineterminator='\n')
-        writer.writerows(paddyArray)
+        writer.writerows(list)
     print(filePath, "に書き込み完了")
 
 
@@ -91,6 +125,7 @@ def rotation_o(u, t, x, y, deg=False):
     return np.dot(R, u)
 
 
+# 縮小 -> 植えるときの幅、何条植えかなどの情報をもとに配列を縮小する処理
 def paddyShrink(u, xShrink, yShrink):
     R = np.array([[xShrink, 0, 0],
                   [0, yShrink, 0],
@@ -98,3 +133,13 @@ def paddyShrink(u, xShrink, yShrink):
 
     return np.dot(R, u)
 
+
+# 多角形の外周について、縮小を行った、内周を算出。
+# x, y軸において、各辺から1を引いた値が内周になると仮定できる。
+# 内周の配列を作る必要があるのかもしれない。
+def inside_paddy(u, x_shrink, y_shrink):
+    R = np.array([[x_shrink, 0, 1],
+                  [0, y_shrink, -1],
+                  [0, 0, 1]])
+
+    return np.dot(R, u)

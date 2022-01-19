@@ -3,9 +3,10 @@ from django.http import HttpResponse
 from . import form
 from .util import util
 from .exception import Exception
-from rection1.paddy.Model.paddyModel import PaddyParameter, StartEndPosition
+from rection1.paddy.Repository.paddyRepository import PaddyParameter, StartEndPosition
 from .paddy.paddyproperty import PaddyProperty
-from rection1.paddy.Model.machineModel import Machine
+from rection1.paddy.Repository.machineRepository import Machine
+import time
 
 
 def login(request):
@@ -47,6 +48,7 @@ def loginConf(request):
 
 def position(request):
     if request.method == 'GET':
+        start = time.time()
         # JSON情報を取得
         pram = request.GET.get("location_json_data")
         start_end_point = request.GET.get("location_start_end_point_data")
@@ -63,8 +65,11 @@ def position(request):
 
         try:
             p = PaddyProperty(paddyFields.paddyFields, startEndPointInfo.startEndPosition, machineInfo)
+            # print(p.moveList.to_json(indent=4, ensure_ascii=False))
+            elapsed_time = time.time() - start
+            print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
         except Exception.PointException as e:
             return HttpResponse(e)
-        return HttpResponse(p.paddyDistance)
+        return HttpResponse(p.moveList.to_json(indent=4, ensure_ascii=False))
     else:
         return HttpResponse("違うメソッドを使用しています。")
