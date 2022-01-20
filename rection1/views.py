@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from . import form
-from .util import util
+from .paddy.util import util
 from .exception import Exception
 from rection1.paddy.Repository.paddyRepository import PaddyParameter, StartEndPosition
 from .paddy.paddyproperty import PaddyProperty

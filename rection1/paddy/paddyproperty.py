@@ -1,13 +1,12 @@
 import math
 import numpy as np
-import time
 
 from .routeProposal import RouteProposal as rp
 from rection1.paddy.Repository.paddyRepository import Paddy, Position
 from geopy.distance import geodesic
 from ..paddy.Repository.machineRepository import Machine
 from rection1.paddy.Parameters import paddyParameters as pp
-from ..util import util
+from .util import util
 
 """
 memo
@@ -107,17 +106,17 @@ class PaddyProperty:
         self.machineInfo = machineInfo
 
         # ポジションからポジションまでの長さを算出
-        self.generatePtPDistance()
+        self.generate_ptp__distance()
 
         # 単独で呼び出し可能
         # 必要な値を生成
-        self.generateRequiredParameters()
+        self.generate_required_parameters()
 
         # リストを生成
-        self.moveList = self.createList()
+        self.moveList = self.create_list()
 
     # 必要なパラメータを算出
-    def generateRequiredParameters(self):
+    def generate_required_parameters(self):
         xList = []
         yList = []
 
@@ -145,14 +144,14 @@ class PaddyProperty:
         # 左上の座標を格納
         self.topLeft = yList[self.topIndex], xList[self.leftIndex]
 
-        self.generateMovementAndCorrection()
-        self.generateOutside()
-        self.generateNewMovementAndCorrection()
+        self.generate_movement_and_correction()
+        self.generate_outside()
+        self.generate_new_movement_and_correction()
         # 内周のポジションを確定させる
-        self.generateInside()
+        self.generate_inside()
 
     # 点と点の距離情報を算出
-    def generatePtPDistance(self):
+    def generate_ptp__distance(self):
 
         #   距離情報を格納するリストを生成
         paddyDistance = [[0.0 for _ in range(len(self.paddyFields))] for _ in range(len(self.paddyFields))]
@@ -172,7 +171,7 @@ class PaddyProperty:
         self.paddyDistance = paddyDistance
 
     # 行、列軸の移動量を算出
-    def generateMovementAndCorrection(self):
+    def generate_movement_and_correction(self):
         xMovement = []
         yMovement = []
         yPCount = 0
@@ -233,11 +232,11 @@ class PaddyProperty:
         self.yCorrection = yCount
         self.xCorrection = xCount
         # 最も高いノードから順番を算出
-        self.generateTopToEndNodeList()
-        self.checkClockWise()
+        self.generate_top_to_end_node_list()
+        self.check_clock_wise()
 
     # 配列が変更されたことによって移動量に変更が起こる
-    def generateNewMovementAndCorrection(self):
+    def generate_new_movement_and_correction(self):
         xMovement = []
         yMovement = []
         xMove = 0
@@ -249,7 +248,7 @@ class PaddyProperty:
         self.yMovement = yMovement
 
     # 各ノードがつながっているリストを作成
-    def generateTopToEndNodeList(self):
+    def generate_top_to_end_node_list(self):
         nodeList = []
         for i in range(0, len(self.xMovement)):
             index = self.topIndex + i
@@ -259,7 +258,7 @@ class PaddyProperty:
         self.topToEndNode = nodeList
 
     # ポリゴンのポジションを特定
-    def generateOutside(self):
+    def generate_outside(self):
         columnArray = []
         rowArray = []
         doorwayColumnList = []
@@ -295,7 +294,7 @@ class PaddyProperty:
         print(self.outsideCircumferenceColumnList)
 
         # ポリゴンを回転させる
-        self.changeAngle()
+        self.change_angle()
 
         # 一番右にあるポジションのindexを取得
         self.arrayRightIndex = columnArray.index(max(columnArray))
@@ -329,7 +328,7 @@ class PaddyProperty:
                 self.doorwayRowList[i] = after
 
         # ポリゴンを縮小させる
-        self.paddyShrink()
+        self.paddy_shrink()
 
         # 縦と横を算出
         self.outsideMaxRow = round(max(self.outsideCircumferenceRowList) + self.yCorrection)
@@ -346,7 +345,7 @@ class PaddyProperty:
 
     # 時計回りか反時計回りかを判定後呼び出し可能
     # ポリゴンを回転させる。
-    def changeAngle(self):
+    def change_angle(self):
         # 時計回りと反時計回りで処理を変えなければならない。
         # 時計回り
         # Yは行、Xは列
@@ -449,12 +448,12 @@ class PaddyProperty:
             self.doorwayColumnList[index] = round(x)
 
     # 田んぼを縮小する
-    def paddyShrink(self):
+    def paddy_shrink(self):
         for index in self.topToEndNode:
             y = -1 * self.outsideCircumferenceRowList[index]
             x = self.outsideCircumferenceColumnList[index]
             moveNode = np.array([x, y, 1])
-            x, y, z = util.paddyShrink(
+            x, y, z = util.paddy_shrink(
                 moveNode,
                 1 / self.machineInfo.BetweenTheLines,
                 1 / self.machineInfo.BetweenStocks
@@ -467,7 +466,7 @@ class PaddyProperty:
             y = -1 * self.doorwayRowList[index]
             x = self.doorwayColumnList[index]
             moveNode = np.array([x, y, 1])
-            x, y, z = util.paddyShrink(
+            x, y, z = util.paddy_shrink(
                 moveNode,
                 1 / self.machineInfo.BetweenTheLines,
                 1 / self.machineInfo.BetweenStocks
@@ -476,13 +475,13 @@ class PaddyProperty:
             self.doorwayColumnList[index] = round(x)
 
     # 移動量を算出後に呼び出せる。
-    def checkClockWise(self):
+    def check_clock_wise(self):
         # 正なら時計回り
         if self.xMovement[self.topIndex] > 0:
             self.clockWise = True
 
     # 内周のポジションを確定させる
-    def generateInside(self):
+    def generate_inside(self):
         insideRowList = []
         insideColumnList = []
         rowList = self.outsideCircumferenceRowList
@@ -506,7 +505,7 @@ class PaddyProperty:
 
         # 配列を生成
 
-    def createList(self):
+    def create_list(self):
         #   配列の生成   列、行で生成
         paddyArray = [
             [0] * (self.outsideMaxColumn + self.xCorrection)
@@ -526,7 +525,7 @@ class PaddyProperty:
         self.paddyArray = paddyArray
         # 回転後のポジション情報を配列に描画
         for index in self.topToEndNode:
-            util.fillPaddy(
+            util.fill_paddy(
                 self.paddyArray,
                 self.outsideCircumferenceRowList[index],
                 self.outsideCircumferenceColumnList[index],
@@ -534,27 +533,27 @@ class PaddyProperty:
 
         for index in range(len(self.doorwayColumnList)):
             if self.startEndPosition[index].position == "start":
-                util.fillPaddy(
+                util.fill_paddy(
                     self.paddyArray,
                     self.doorwayRowList[index],
                     self.doorwayColumnList[index],
                     pp.START_POSITION
                 )
             else:
-                util.fillPaddy(
+                util.fill_paddy(
                     self.paddyArray,
                     self.doorwayRowList[index],
                     self.doorwayColumnList[index],
                     pp.END_POSITION
                 )
         for inside in range(len(self.insideCircumferenceRowList)):
-            util.fillPaddy(
+            util.fill_paddy(
                 self.paddyArray,
                 self.insideCircumferenceRowList[inside],
                 self.insideCircumferenceColumnList[inside],
                 pp.INSIDE_POSITION
             )
-        util.exportToFile(paddyArray)
+        util.export_to_file(paddyArray)
 
         rs = rp(
             paddyArray=self.paddyArray,
@@ -569,23 +568,26 @@ class PaddyProperty:
             machineInfo=self.machineInfo,
             rowFlag=self.rowFlag
         )
-        moveList = rs.searchRoute()
+        moveList = rs.search_route()
+
+        print(self.insideCircumferenceRowList, self.insideCircumferenceColumnList)
 
         for i in range(len(inside_paddy)):
             for j in range(len(inside_paddy[0])):
-                if util.isPositionInsidePolygon(
-                        self.outsideCircumferenceRowList,
-                        self.outsideCircumferenceColumnList,
+                if util.is_position_inside_polygon(
+                        self.insideCircumferenceRowList,
+                        self.insideCircumferenceColumnList,
                         j,
                         i
                 ):
-                    util.fill_position(inside_paddy, j, i, "I")
+                    util.fill_position(inside_paddy, j, i, "K")
                 else:
                     util.fill_position(inside_paddy, j, i, "O")
 
-        util.exportToFile(inside_paddy, fileName='paddyArray')
-        for i in moveList.AllMoveList:
-            for j in i.stepMoveList:
-                util.fillPaddyRoute(self.paddyArray, j)
-        util.exportToFile(self.paddyArray, fileName='paddyRoute')
+        util.export_to_file(inside_paddy, fileName='paddyArray')
+
+        for i in moveList.all_move_list:
+            for j in i.step_move_list:
+                util.fill_paddy_route(self.paddyArray, j)
+        util.export_to_file(self.paddyArray, fileName='paddyRoute')
         return moveList
