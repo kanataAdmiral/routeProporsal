@@ -1,6 +1,8 @@
 import hashlib
 import csv
 import math
+import sys
+
 import numpy as np
 
 from rection1.models import User
@@ -35,7 +37,7 @@ def login_check(user_id, loginPass):
         raise Exception.LoginException('ユーザが見つかりません')
 
 
-def is_position_inside_polygon(rowList, columnList, x, y) -> bool:
+def is_position_inside_polygon(rowList, columnList, position) -> bool:
     points = []
     inside_poly = []
 
@@ -45,7 +47,7 @@ def is_position_inside_polygon(rowList, columnList, x, y) -> bool:
     inside_poly.append(points)
     poly = Polygon(inside_poly)
 
-    point = Feature(geometry=Point((x, y)))
+    point = Feature(geometry=Point((position[0], position[1])))
 
     return boolean_point_in_polygon(point, poly)
 
@@ -53,14 +55,14 @@ def is_position_inside_polygon(rowList, columnList, x, y) -> bool:
 def fill_paddy(paddyArray, row, column, string):
     row = math.floor(row)
     column = math.floor(column)
-    if string == pp.OUTSIDE_POSITION:
-        print("paddy[", row, "][", column, "]が外周")
-    elif string == pp.INSIDE_POSITION:
-        print("paddy[", row, "][", column, "]が内周")
-    elif string == pp.START_POSITION:
-        print("paddy[", row, "][", column, "]が入口")
-    elif string == pp.END_POSITION:
-        print("paddy[", row, "][", column, "]が出口")
+    # if string == pp.OUTSIDE_POSITION:
+    #     print("paddy[", row, "][", column, "]が外周")
+    # elif string == pp.INSIDE_POSITION:
+    #     print("paddy[", row, "][", column, "]が内周")
+    # elif string == pp.START_POSITION:
+    #     print("paddy[", row, "][", column, "]が入口")
+    # elif string == pp.END_POSITION:
+    #     print("paddy[", row, "][", column, "]が出口")
 
     if paddyArray[row][column] == 0:
         paddyArray[row][column] = string
@@ -78,10 +80,14 @@ def fill_position(paddyArray, x, y, string):
 def fill_paddy_route(paddyArray, mp):
     x = mp.column_position
     y = mp.row_position
-    if paddyArray[y][x] == 0:
-        paddyArray[y][x] = fill_icon(mp.icon, mp.plant)
-    else:
-        paddyArray[y][x] = paddyArray[y][x] + fill_icon(mp.icon, mp.plant)
+    try:
+        if paddyArray[y][x] == 0:
+            paddyArray[y][x] = fill_icon(mp.icon, mp.plant)
+        else:
+            paddyArray[y][x] = paddyArray[y][x] + fill_icon(mp.icon, mp.plant)
+    except IndexError as e:
+        print("アルゴルズムに内部的エラーが発生")
+        sys.exit()
 
 
 def fill_icon(icon, plant):

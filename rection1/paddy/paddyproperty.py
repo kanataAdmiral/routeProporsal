@@ -290,9 +290,6 @@ class PaddyProperty:
         self.doorwayColumnList = doorwayColumnList
         self.doorwayRowList = doorwayRowList
 
-        print(self.outsideCircumferenceRowList)
-        print(self.outsideCircumferenceColumnList)
-
         # ポリゴンを回転させる
         self.change_angle()
 
@@ -334,7 +331,6 @@ class PaddyProperty:
         self.outsideMaxRow = round(max(self.outsideCircumferenceRowList) + self.yCorrection)
         self.outsideMaxColumn = round(max(self.outsideCircumferenceColumnList) + self.xCorrection)
 
-
     # 行と列のポジションを格納しているリストの最適化
     """
     回転行列を用いて最も高い点(以後topと呼ぶ)を中心としてtopから一つ右の点(以後topLeftとする)をtopと同じ高さにするように変換を行う。
@@ -356,8 +352,6 @@ class PaddyProperty:
         for p in range(len(self.paddyDistance[self.topIndex])):
             if self.paddyDistance[self.topIndex][long_dis_index] < self.paddyDistance[self.topIndex][p]:
                 long_dis_index = p
-        print(self.paddyDistance[self.topIndex])
-        print(long_dis_index)
 
         # 最も高いポジション
         topY = -1 * self.outsideCircumferenceRowList[self.topIndex]
@@ -484,8 +478,6 @@ class PaddyProperty:
     def generate_inside(self):
         insideRowList = []
         insideColumnList = []
-        rowList = self.outsideCircumferenceRowList
-        columnList = self.outsideCircumferenceColumnList
         for index in self.topToEndNode:
             y = -1 * self.outsideCircumferenceRowList[index]
             x = self.outsideCircumferenceColumnList[index]
@@ -513,6 +505,11 @@ class PaddyProperty:
         ]
 
         inside_paddy = [
+            [0] * (self.outsideMaxColumn + self.xCorrection)
+            for _ in range(self.outsideMaxRow + self.yCorrection)
+        ]
+
+        outside_paddy = [
             [0] * (self.outsideMaxColumn + self.xCorrection)
             for _ in range(self.outsideMaxRow + self.yCorrection)
         ]
@@ -570,21 +567,29 @@ class PaddyProperty:
         )
         moveList = rs.search_route()
 
-        print(self.insideCircumferenceRowList, self.insideCircumferenceColumnList)
-
         for i in range(len(inside_paddy)):
             for j in range(len(inside_paddy[0])):
                 if util.is_position_inside_polygon(
                         self.insideCircumferenceRowList,
                         self.insideCircumferenceColumnList,
-                        j,
-                        i
+                        [j, i]
                 ):
                     util.fill_position(inside_paddy, j, i, "K")
                 else:
                     util.fill_position(inside_paddy, j, i, "O")
+        util.export_to_file(inside_paddy, fileName='paddy_array_inside')
 
-        util.export_to_file(inside_paddy, fileName='paddyArray')
+        for i in range(len(inside_paddy)):
+            for j in range(len(inside_paddy[0])):
+                if util.is_position_inside_polygon(
+                        self.outsideCircumferenceRowList,
+                        self.outsideCircumferenceColumnList,
+                        [j, i]
+                ):
+                    util.fill_position(outside_paddy, j, i, "K")
+                else:
+                    util.fill_position(outside_paddy, j, i, "O")
+        util.export_to_file(outside_paddy, fileName='paddy_array_outside')
 
         for i in moveList.all_move_list:
             for j in i.step_move_list:
