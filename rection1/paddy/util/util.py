@@ -11,8 +11,7 @@ from turfpy.measurement import boolean_point_in_polygon
 from geojson import Point, Polygon, Feature
 
 from rection1.exception import Exception
-from rection1.paddy.Parameters import paddyParameters as pp
-
+from scipy.spatial import distance
 
 salt = bytes("b'pelob/9gQSxIsZ66wlu+wblqY8wuqT0HQl7TODMotyA='", 'utf-8')
 
@@ -70,11 +69,14 @@ def fill_paddy(paddyArray, row, column, string):
         print("paddyArray[", row, "][", column, "]is not void")
 
 
-def fill_position(paddyArray, x, y, string):
+def fill_position(paddyArray, x, y, string, flag=True):
     if paddyArray[y][x] == 0:
         paddyArray[y][x] = string
     else:
-        print("paddyArray is not void")
+        if flag:
+            print("paddyArray is not void")
+        else:
+            paddyArray[y][x] = string
 
 
 def fill_paddy_route(paddyArray, mp):
@@ -114,10 +116,9 @@ def export_to_file(any_list, fileName='paddyArray'):
 
 
 # 原点とする座標をx, yで渡す
-    # 動かしたい座標をuで渡す
-    # 最も高い点を中心に回転した後のx軸, y軸, z軸を返す
+# 動かしたい座標をuで渡す
+# 最も高い点を中心に回転した後のx軸, y軸, z軸を返す
 def rotation_o(u, t, x, y, deg=False):
-
     # 度数単位の角度をラジアンに変換
     if deg:
         t = np.deg2rad(t)
@@ -149,3 +150,37 @@ def inside_paddy(u, x_shrink, y_shrink):
                   [0, 0, 1]])
 
     return np.dot(R, u)
+
+
+# positionがpolygonのどの点と近いのかindexを返す
+def most_close_index(position, polygon):
+    distance_list = []
+    for x, y in polygon:
+        b = (x, y)
+        distance_list.append(distance.euclidean(position, b))
+    return distance_list.index(min(distance_list))
+
+
+def position_to_position_distance(now_position, next_position, door_way_position):
+    ptp_distance1 = distance.euclidean(now_position, door_way_position)
+    ptp_distance2 = distance.euclidean(now_position, next_position)
+    # 次のポジションと出入り口のpositionの距離を比較して、より近い方を返す
+    if ptp_distance1 < ptp_distance2:
+        return door_way_position
+    else:
+        return next_position
+
+
+def position_in_line(position, polygon):
+    for i in range(len(polygon)):
+        a = polygon[i - 1]
+        b = polygon[i]
+        print((position[1] * (a[0] - b[0])) + (a[1] * (b[0] - position[0])) + (b[1] * (position[0] - a[0])))
+        if (a[0] <= position[0] <= b[0]) or (b[0] <= position[0] <= a[0]):
+            if (a[1] <= position[1] <= b[1]) or (b[1] <= position[1] <= a[1]):
+                if (position[1] * (a[0] - b[0])) + (a[1] * (b[0] - position[0])) + (b[1] * (position[0] - a[0])) == 0:
+                    # 点Pが線分AB上にある
+                    return True, a, b
+
+    # 点Pが線分AB上にない
+    return False, 0, 0

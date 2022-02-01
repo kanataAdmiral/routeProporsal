@@ -566,6 +566,25 @@ class PaddyProperty:
         )
         moveList = rs.search_route()
 
+        for i in range(len(inside_paddy)):
+            for j in range(len(inside_paddy[0])):
+                if util.is_position_inside_polygon(
+                        self.outsideCircumferenceRowList,
+                        self.outsideCircumferenceColumnList,
+                        [j, i]
+                ):
+                    if util.is_position_inside_polygon(
+                            self.insideCircumferenceRowList,
+                            self.insideCircumferenceColumnList,
+                            [j, i]
+                    ):
+                        util.fill_position(outside_paddy, j, i, "IN", False)
+                    util.fill_position(outside_paddy, j, i, "OUT", False)
+                else:
+                    util.fill_position(outside_paddy, j, i, "0", False)
+
+        util.export_to_file(outside_paddy, fileName='paddy_array')
+
         for i in moveList.all_move_list:
             for j in i.step_move_list:
                 util.fill_paddy_route(self.paddyArray, j)
